@@ -1,0 +1,33 @@
+# Prometheus Configuration File for CentralWatch
+# Controls global scrape settings and targets.
+
+global:
+  # How frequently to scrape targets by default.
+  scrape_interval: 10s
+  # How long a scrape request can run before timing out.
+  scrape_timeout: 9s
+  # How frequently to evaluate rules (not used for this setup, but good practice).
+  evaluation_interval: 10s
+
+# Scrape configurations define the endpoints Prometheus monitors.
+scrape_configs:
+  # Scrape job for the OpenTelemetry Collector's exposed metrics endpoint.
+  - job_name: 'otel-collector'
+    # Override global defaults if needed for high frequency metric collection
+    scrape_interval: 5s
+    # Path where the collector exposes its Prometheus-formatted metrics.
+    metrics_path: '/metrics'
+    # Targets to scrape. Uses Docker Compose service name for internal routing.
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          environment: 'production'
+          service: 'centralwatch-collector'
+
+  # Scrape job for Prometheus itself to monitor its own performance metrics.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          environment: 'production'
+          service: 'prometheus-internal'

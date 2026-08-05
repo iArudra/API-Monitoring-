@@ -1,0 +1,69 @@
+# OpenTelemetry Collector Configuration for CentralWatch
+# Configured with security, resource protection, and extensibility in mind.
+
+receivers:
+  # OTLP Receiver configuration supporting both gRPC and HTTP protocols.
+  # This receives application telemetry from the FastAPI service.
+  otlp:
+    protocols:
+      grpc:
+        # Bind to all network interfaces inside the container for internal OTLP gRPC reception.
+        endpoint: 0.0.0.0:4317
+      http:
+        # Bind to all network interfaces inside the container for internal OTLP HTTP/JSON reception.
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Memory Limiter Processor prevents the collector from running out of memory.
+  # Checked every 1s, it will drop/reject data if usage climbs past the threshold.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+  # Batch Processor pools telemetry events into batches before exporting.
+  # This reduces connection overhead and improves export efficiency.
+  batch:
+    send_batch_size: 8192
+    timeout: 5s
+    send_batch_max_size: 10240
+
+exporters:
+  # Prometheus Exporter hosts a scrape endpoint.
+  # Prometheus will connect to this endpoint to pull collected metrics.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: centralwatch
+    send_timestamps: true
+    metric_expiration: 5m
+
+  # Debug Exporter (replaces deprecated 'logging' exporter).
+  # Prints detailed telemetry records to standard output for debugging/monitoring pipeline validation.
+  debug:
+    verbosity: detailed
+
+  # Future OTLP Backend Exporter (Template for Member 4).
+  # Commented out by default to avoid connection retry noise in logs.
+  # To enable:
+  # 1. Uncomment the lines below.
+  # 2. Add 'otlp' to the active metrics pipeline exporters list.
+  # otlp:
+  #   endpoint: "backend:4317"
+  #   tls:
+  #     insecure: true
+
+service:
+  # Pipelines define how telemetry flows from Receivers through Processors to Exporters.
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      # Add 'otlp' to the list below once uncommented in exporters to stream metrics to the backend.
+      exporters: [prometheus, debug]
+
+  # Telemetry configuration for the Collector's own internal metrics and logging.
+  telemetry:
+    logs:
+      level: "info"
+    metrics:
+      address: "0.0.0.0:8888" # Internal telemetry endpoint for the collector itself

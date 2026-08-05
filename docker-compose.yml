@@ -1,0 +1,55 @@
+# Docker Compose file for CentralWatch Infrastructure
+# Sets up the OpenTelemetry Collector and Prometheus in a dedicated network.
+version: '3.8'
+
+services:
+  # OpenTelemetry Collector Service
+  # Receives telemetry from the FastAPI application via OTLP and exposes a Prometheus scrape endpoint.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: centralwatch-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./configs/collector/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8889:8889" # Prometheus exporter metrics endpoint (optional exposure, but useful for host-level verification)
+    networks:
+      - centralwatch-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prometheus Service
+  # Scrapes metrics from the OpenTelemetry Collector and stores them.
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    container_name: centralwatch-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-storage:/prometheus
+    ports:
+      - "9090:9090" # Prometheus Web UI & Scrape endpoint
+    networks:
+      - centralwatch-network
+    depends_on:
+      - otel-collector
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  # Dedicated bridge network for secure container-to-container communication
+  centralwatch-network:
+    driver: bridge
+
+volumes:
+  # Persistent volume for Prometheus metrics data
+  prometheus-storage:
