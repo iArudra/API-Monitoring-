@@ -16,7 +16,7 @@ fi
 
 # 1. Verify Docker containers are running
 echo "Checking Docker containers..."
-CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus")
+CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo")
 ALL_RUNNING=true
 
 for container in "${CONTAINERS[@]}"; do
@@ -34,10 +34,11 @@ if [ "$ALL_RUNNING" = false ]; then
   exit 1
 fi
 
-# 2. Check OTel Collector metrics endpoint readiness
-echo "Checking OTel Collector metrics endpoint (http://localhost:8889/metrics)..."
 MAX_RETRIES=6
 RETRY_INTERVAL=5
+
+# 2. Check OTel Collector metrics endpoint readiness
+echo "Checking OTel Collector metrics endpoint (http://localhost:8889/metrics)..."
 COLLECTOR_READY=false
 
 for ((i=1; i<=MAX_RETRIES; i++)); do
@@ -76,7 +77,47 @@ if [ "$PROM_READY" = false ]; then
   exit 1
 fi
 
-# 4. Deep Scrape Verification: Check Prometheus target health
+# 4. Check Loki readiness
+echo "Checking Loki readiness (http://localhost:3100/ready)..."
+LOKI_READY=false
+
+for ((i=1; i<=MAX_RETRIES; i++)); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3100/ready || echo "000")
+  if [ "$HTTP_CODE" = "200" ] || [ "$(curl -s http://localhost:3100/ready || true)" = "ready" ]; then
+    echo "  [PASS] Loki is ready (HTTP $HTTP_CODE)."
+    LOKI_READY=true
+    break
+  fi
+  echo "  [RETRY $i/$MAX_RETRIES] Loki not ready yet (HTTP $HTTP_CODE). Retrying in ${RETRY_INTERVAL}s..."
+  sleep $RETRY_INTERVAL
+done
+
+if [ "$LOKI_READY" = false ]; then
+  echo "Error: Loki is not reachable or not ready." >&2
+  exit 1
+fi
+
+# 5. Check Tempo readiness
+echo "Checking Tempo readiness (http://localhost:3200/ready)..."
+TEMPO_READY=false
+
+for ((i=1; i<=MAX_RETRIES; i++)); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3200/ready || echo "000")
+  if [ "$HTTP_CODE" = "200" ] || [ "$(curl -s http://localhost:3200/ready || true)" = "ready" ]; then
+    echo "  [PASS] Tempo is ready (HTTP $HTTP_CODE)."
+    TEMPO_READY=true
+    break
+  fi
+  echo "  [RETRY $i/$MAX_RETRIES] Tempo not ready yet (HTTP $HTTP_CODE). Retrying in ${RETRY_INTERVAL}s..."
+  sleep $RETRY_INTERVAL
+done
+
+if [ "$TEMPO_READY" = false ]; then
+  echo "Error: Tempo is not reachable or not ready." >&2
+  exit 1
+fi
+
+# 6. Deep Scrape Verification: Check Prometheus target health
 echo "Verifying Prometheus target scrape status for 'otel-collector'..."
 TARGET_UP=false
 
@@ -84,9 +125,6 @@ TARGET_UP=false
 for ((i=1; i<=MAX_RETRIES; i++)); do
   TARGETS_JSON=$(curl -s http://localhost:9090/api/v1/targets || echo "")
   
-  # Simple grep checks to ensure target is up
-  # It looks for "otel-collector" and verifies "health":"up" is nearby.
-  # We extract activeTargets section and match our job.
   if echo "$TARGETS_JSON" | grep -q '"job":"otel-collector"' && \
      echo "$TARGETS_JSON" | grep -q '"health":"up"'; then
     echo "  [PASS] Prometheus target 'otel-collector' is successfully scraped and health status is UP."

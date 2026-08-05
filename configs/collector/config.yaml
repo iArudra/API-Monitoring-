@@ -37,6 +37,16 @@ exporters:
     send_timestamps: true
     metric_expiration: 5m
 
+  # Loki Exporter for shipping logs
+  loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+
+  # OTLP Exporter to ship traces to Tempo (gRPC)
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
+
   # Debug Exporter (replaces deprecated 'logging' exporter).
   # Prints detailed telemetry records to standard output for debugging/monitoring pipeline validation.
   debug:
@@ -60,6 +70,16 @@ service:
       processors: [memory_limiter, batch]
       # Add 'otlp' to the list below once uncommented in exporters to stream metrics to the backend.
       exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [loki, debug]
+
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo, debug]
 
   # Telemetry configuration for the Collector's own internal metrics and logging.
   telemetry:
