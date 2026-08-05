@@ -95,6 +95,33 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Grafana Service
+  # Visualization dashboard for Metrics (Prometheus), Logs (Loki), and Traces (Tempo).
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: centralwatch-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Grafana Web UI
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-storage:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - centralwatch-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   # Dedicated bridge network for secure container-to-container communication
   centralwatch-network:
@@ -107,3 +134,5 @@ volumes:
   loki-storage:
   # Persistent volume for Tempo traces data
   tempo-storage:
+  # Persistent volume for Grafana configurations/dashboards
+  grafana-storage:

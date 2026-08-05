@@ -16,7 +16,7 @@ fi
 
 # 1. Verify Docker containers are running
 echo "Checking Docker containers..."
-CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo")
+CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana")
 ALL_RUNNING=true
 
 for container in "${CONTAINERS[@]}"; do
@@ -117,7 +117,27 @@ if [ "$TEMPO_READY" = false ]; then
   exit 1
 fi
 
-# 6. Deep Scrape Verification: Check Prometheus target health
+# 6. Check Grafana readiness
+echo "Checking Grafana readiness (http://localhost:3000/api/health)..."
+GRAFANA_READY=false
+
+for ((i=1; i<=MAX_RETRIES; i++)); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || echo "000")
+  if [ "$HTTP_CODE" = "200" ]; then
+    echo "  [PASS] Grafana is ready (HTTP $HTTP_CODE)."
+    GRAFANA_READY=true
+    break
+  fi
+  echo "  [RETRY $i/$MAX_RETRIES] Grafana not ready yet (HTTP $HTTP_CODE). Retrying in ${RETRY_INTERVAL}s..."
+  sleep $RETRY_INTERVAL
+done
+
+if [ "$GRAFANA_READY" = false ]; then
+  echo "Error: Grafana is not reachable or not ready." >&2
+  exit 1
+fi
+
+# 7. Deep Scrape Verification: Check Prometheus target health
 echo "Verifying Prometheus target scrape status for 'otel-collector'..."
 TARGET_UP=false
 
