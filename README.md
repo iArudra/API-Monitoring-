@@ -1,8 +1,8 @@
 # CentralWatch Infrastructure
 
-This repository contains the monitoring infrastructure layer for **CentralWatch**, consisting of the **OpenTelemetry (OTel) Collector** and **Prometheus**.
+This repository contains the monitoring and observability infrastructure layer for **CentralWatch**, consisting of the **OpenTelemetry (OTel) Collector**, **Prometheus**, **Loki**, and **Tempo**.
 
-The infrastructure is designed for high reliability, security, and extensibility, allowing other applications (such as FastAPI) to send telemetry data via OTLP, which is then processed, scraped, and stored.
+The infrastructure is designed for high reliability, security, and extensibility, allowing other applications (such as FastAPI) to send telemetry data (metrics, logs, and traces) via OTLP. The OTel Collector fans out this data to their respective backends.
 
 ---
 
@@ -14,8 +14,9 @@ graph TD
     
     subgraph CentralWatch Infrastructure
         Collector -->|Exposes Prometheus Endpoint :8889| PromScrape[Prometheus Scrape Engine]
+        Collector -->|Loki Push API :3100| Loki[(Loki Logs :3100)]
+        Collector -->|OTLP gRPC :4317| Tempo[(Tempo Traces :3200)]
         Collector -.->|Debug Exporter stdout| Logs[(Console Logs)]
-        Collector -.->|OTLP Exporter commented| Backend[Future Backend / Member 4]
         
         PromScrape -->|Stores Metrics| Prometheus[(Prometheus DB :9090)]
     end
@@ -31,21 +32,39 @@ graph TD
 | **OTel Collector** | `4318` | HTTP | External | OTLP telemetry ingestion endpoint. |
 | **OTel Collector** | `8889` | HTTP | Internal / External | Prometheus metrics scrape endpoint (read by Prometheus). |
 | **Prometheus** | `9090` | HTTP | External | Prometheus Web UI and HTTP query API. |
+| **Loki** | `3100` | HTTP | External | Loki HTTP API and Grafana datasource ready endpoint. |
+| **Tempo** | `3200` | HTTP | External | Tempo HTTP ready and Search API datasource endpoint. |
 
 ---
 
-## Collector Pipeline Configuration
+## Telemetry Flow and Pipelines
 
-The OpenTelemetry Collector executes the following telemetry flow:
+The OpenTelemetry Collector executes the following telemetry pipelines:
 
-1. **Receivers**: Ingests OTLP data over gRPC (port `4317`) and HTTP (port `4318`).
-2. **Processors**:
-   - `memory_limiter`: Checks memory footprint every `1s` to prevent Out-Of-Memory (OOM) failures by dropping data if usage goes above `75%`.
-   - `batch`: Groups metrics into batches of up to `10240` events or every `5s` to reduce network round-trip overhead.
-3. **Exporters**:
-   - `prometheus`: Exposes the processed metrics in Prometheus format at `http://otel-collector:8889/metrics`.
-   - `debug`: Writes detailed log output of received telemetry to container standard output for simple debugging and observability.
-   - `otlp` (Preconfigured Template): Commented out by default to avoid connection failures, serving as a ready-to-use plug-and-play hook for Member 4's backend integration.
+### 1. Metrics Pipeline
+- **Receivers**: Ingests OTLP data over gRPC (port `4317`) and HTTP (port `4318`).
+- **Processors**:
+  - `memory_limiter`: Checks memory footprint every `1s` to prevent Out-Of-Memory (OOM) failures by dropping data if usage goes above `75%`.
+  - `batch`: Groups metrics into batches of up to `10240` events or every `5s`.
+- **Exporters**:
+  - `prometheus`: Exposes the processed metrics in Prometheus format at `http://otel-collector:8889/metrics`.
+  - `debug`: Prints detailed logs to the console.
+
+### 2. Logs Pipeline
+- **Receivers**: Ingests OTLP data over gRPC (port `4317`) and HTTP (port `4318`).
+- **Processors**:
+  - Same `memory_limiter` and `batch` processors to maintain uniform resource control.
+- **Exporters**:
+  - `loki`: Ships logs to the Loki HTTP push endpoint `http://loki:3100/loki/api/v1/push`.
+  - `debug`: Prints detailed logs to the console.
+
+### 3. Traces Pipeline
+- **Receivers**: Ingests OTLP data over gRPC (port `4317`) and HTTP (port `4318`).
+- **Processors**:
+  - Same `memory_limiter` and `batch` processors to maintain uniform resource control.
+- **Exporters**:
+  - `otlp/tempo`: Ships traces to the Tempo OTLP receiver endpoint `tempo:4317` over gRPC.
+  - `debug`: Prints detailed logs to the console.
 
 ---
 
@@ -53,7 +72,7 @@ The OpenTelemetry Collector executes the following telemetry flow:
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed on your machine.
+- [Docker](https://docs.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed.
 - Bash shell (Git Bash/WSL on Windows, or native terminal on Linux/macOS).
 
 ### 1. Start the Stack
@@ -76,13 +95,15 @@ To stop and tear down the services, run:
 
 ## Verification & Health Check
 
-The `scripts/healthcheck.sh` script does a deep health check of all components:
-1. Verifies that the docker containers are active.
-2. Queries the Collector metrics endpoint (`http://localhost:8889/metrics`) to verify it serves metrics properly.
-3. Queries Prometheus readiness endpoint (`http://localhost:9090/-/healthy`).
-4. Queries the Prometheus HTTP API to verify the `otel-collector` target is registered and reported as `up`.
+The `scripts/healthcheck.sh` script executes deep health verification of all components:
+1. Verifies that the Docker containers for the OTel Collector, Prometheus, Loki, and Tempo are all running.
+2. Queries the OTel Collector metrics endpoint (`http://localhost:8889/metrics`).
+3. Queries Prometheus readiness (`http://localhost:9090/-/healthy`).
+4. Queries Loki readiness (`http://localhost:3100/ready`).
+5. Queries Tempo readiness (`http://localhost:3200/ready`).
+6. Queries the Prometheus HTTP API to verify the `otel-collector` scrape target is registered and health status is `up`.
 
-Run it with:
+Run the checks with:
 
 ```bash
 ./scripts/healthcheck.sh
@@ -92,7 +113,8 @@ Run it with:
 
 ## Ingest Testing (Manual Verification)
 
-You can send test OTLP metrics to the HTTP receiver using `curl` to verify end-to-end functionality:
+### Metrics Ingestion
+You can send test OTLP metrics to the HTTP receiver using `curl`:
 
 ```bash
 curl -X POST -H "Content-Type: application/json" \
@@ -124,4 +146,4 @@ curl -X POST -H "Content-Type: application/json" \
   }'
 ```
 
-Once submitted, you can search for `centralwatch_sensor_reading` directly in the Prometheus dashboard at [http://localhost:9090](http://localhost:9090).
+Once submitted, you can query `centralwatch_sensor_reading` directly in Prometheus at [http://localhost:9090](http://localhost:9090).
