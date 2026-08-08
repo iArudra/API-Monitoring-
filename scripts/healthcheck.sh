@@ -16,7 +16,7 @@ fi
 
 # 1. Verify Docker containers are running
 echo "Checking Docker containers..."
-CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana")
+CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana" "centralwatch-demo-app" "centralwatch-localstack" "centralwatch-frontend")
 ALL_RUNNING=true
 
 for container in "${CONTAINERS[@]}"; do
@@ -134,6 +134,26 @@ done
 
 if [ "$GRAFANA_READY" = false ]; then
   echo "Error: Grafana is not reachable or not ready." >&2
+  exit 1
+fi
+
+# 6b. Check FastAPI demo app health (liveness)
+echo "Checking demo app health (http://localhost:8000/healthz)..."
+APP_READY=false
+
+for ((i=1; i<=MAX_RETRIES; i++)); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/healthz || echo "000")
+  if [ "$HTTP_CODE" = "200" ]; then
+    echo "  [PASS] Demo app is healthy (HTTP 200)."
+    APP_READY=true
+    break
+  fi
+  echo "  [RETRY $i/$MAX_RETRIES] Demo app not ready yet (HTTP $HTTP_CODE). Retrying in ${RETRY_INTERVAL}s..."
+  sleep $RETRY_INTERVAL
+done
+
+if [ "$APP_READY" = false ]; then
+  echo "Error: demo app is not reachable." >&2
   exit 1
 fi
 

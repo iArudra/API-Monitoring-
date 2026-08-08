@@ -1,10 +1,21 @@
-# Docker Compose file for CentralWatch Infrastructure
-# Sets up the OpenTelemetry Collector and Prometheus in a dedicated network.
-version: '3.8'
+# ============================================================
+# CentralWatch — development stack (LocalStack mode)
+# ============================================================
+# A single `docker compose up -d --build` reproduces the whole system:
+#   demo-app (FastAPI) -> LocalStack (AWS emulation) + OTel Collector
+#   -> Prometheus (metrics) / Loki (logs) / Tempo (traces) -> Grafana
+#   -> frontend (nginx serving the built React SPA, proxying /api)
+#
+# The monitoring system is a BYSTANDER: application traffic flows
+# FastAPI -> AWS. Telemetry is exported OTLP to the collector, which
+# fans out to Prometheus/Loki/Tempo. Nothing sits in the request path.
+#
+# For REAL AWS (production mode) use docker-compose.aws.yml instead.
+# ============================================================
 
 services:
-  # OpenTelemetry Collector Service
-  # Receives telemetry from the FastAPI application via OTLP and exposes a Prometheus scrape endpoint.
+  # OpenTelemetry Collector — receives OTLP from the demo app and fans out
+  # to Prometheus (metrics), Loki (logs) and Tempo (traces).
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.95.0
     container_name: centralwatch-otel-collector
@@ -15,7 +26,7 @@ services:
     ports:
       - "4317:4317" # OTLP gRPC receiver
       - "4318:4318" # OTLP HTTP receiver
-      - "8889:8889" # Prometheus exporter metrics endpoint (optional exposure, but useful for host-level verification)
+      - "8889:8889" # Prometheus exporter scrape endpoint (host-level verification)
     networks:
       - centralwatch-network
     logging:
@@ -24,8 +35,108 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Prometheus Service
-  # Scrapes metrics from the OpenTelemetry Collector and stores them.
+  # FastAPI demo application — generates realistic OTel telemetry while
+  # calling AWS (LocalStack in this file). Built from demo-app/ so a fresh
+  # clone needs no pre-existing image.
+  demo-app:
+    build: ./demo-app
+    image: centralwatch-demo-app:local
+    container_name: centralwatch-demo-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_NAME=centralwatch-demo-app
+      - SERVICE_VERSION=1.0.0
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=INFO
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SESSION_TOKEN=
+      - AWS_S3_ADDRESSING_STYLE=path
+      - AWS_PROVISION_RESOURCES=true
+      - LAMBDA_ROLE_ARN=arn:aws:iam::000000000000:role/centralwatch-lambda-role
+      - S3_BUCKET=centralwatch-files
+      - DYNAMODB_USERS_TABLE=users
+      - DYNAMODB_ORDERS_TABLE=orders
+      - DYNAMODB_FILES_TABLE=files
+      - SNS_TOPIC=centralwatch-notifications
+      - SQS_QUEUE=centralwatch-queue
+      - LAMBDA_FUNCTION=centralwatch-image-processor
+      # DEV-ONLY default. Override with a strong value via `AUTH_TOKEN_SECRET=...`
+      # in any shared environment; docker-compose.aws.yml REQUIRES it (no default).
+      - AUTH_TOKEN_SECRET=${AUTH_TOKEN_SECRET:-centralwatch-demo-secret-change-me}
+      - TOKEN_TTL_SECONDS=86400
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_METRICS_EXPORT_INTERVAL_MS=15000
+      - INIT_RECONCILE_INTERVAL_SECONDS=60
+      - LOCALSTACK_WAIT_TIMEOUT_SECONDS=120
+      - SIMULATE_TIMEOUT_SECONDS=5
+      - SIMULATE_RETRY_ATTEMPTS=3
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 5
+    depends_on:
+      localstack:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    networks:
+      - centralwatch-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # LocalStack — emulates S3, DynamoDB, SNS, SQS and Lambda for offline dev.
+  # The Docker socket mount (Docker Desktop path by default) is REQUIRED only
+  # so LocalStack can spawn the Lambda runtime sidecar; real AWS mode never
+  # touches the Docker socket (Lambda is called through the AWS API).
+  localstack:
+    image: localstack/localstack:3.4.0
+    container_name: centralwatch-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      - PERSISTENCE=1
+      # Lambda runs in a separate sidecar container (LAMBDA_REMOTE_DOCKER is
+      # the historical name; LocalStack 3.x defaults to remote docker when the
+      # socket is available). LAMBDA_DOCKER_NETWORK must match the compose
+      # network so the sidecar can reach LocalStack and the collector.
+      - LAMBDA_REMOTE_DOCKER=true
+      - LAMBDA_DOCKER_NETWORK=centralwatch-network
+      - LAMBDA_DOCKER_FLAGS=-e LOCALSTACK_USER=root
+      - LAMBDA_IGNORE_ARCHITECTURE=1
+      - SERVICES=s3,dynamodb,sns,sqs,lambda
+      - DEBUG=0
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack-storage:/var/lib/localstack
+      # Docker Desktop on Windows/macOS uses /run/host-services/docker.proxy.sock;
+      # on Linux override with DOCKER_SOCK_PATH=/var/run/docker.sock
+      - ${DOCKER_SOCK_PATH:-/run/host-services/docker.proxy.sock}:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    networks:
+      - centralwatch-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prometheus — scrapes the collector's Prometheus endpoint.
   prometheus:
     image: prom/prometheus:v2.49.1
     container_name: centralwatch-prometheus
@@ -34,7 +145,7 @@ services:
       - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-storage:/prometheus
     ports:
-      - "9090:9090" # Prometheus Web UI & Scrape endpoint
+      - "9090:9090"
     networks:
       - centralwatch-network
     depends_on:
@@ -45,8 +156,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Loki Service
-  # Stores logs and provides LogQL querying capability.
+  # Loki — log storage and querying.
   loki:
     image: grafana/loki:2.9.4
     container_name: centralwatch-loki
@@ -56,7 +166,7 @@ services:
       - ./configs/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - loki-storage:/loki
     ports:
-      - "3100:3100" # Loki HTTP API & Grafana source endpoint
+      - "3100:3100"
     networks:
       - centralwatch-network
     healthcheck:
@@ -70,10 +180,12 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Tempo Service
-  # Stores traces and provides trace search capabilities.
+  # Tempo — trace storage and TraceQL querying.
+  # 2.6.x: required for the dashboards' `select(..., duration)` TraceQL clauses
+  # (duration became selectable in Tempo 2.4) and pairs with the Grafana 12
+  # Tempo datasource.
   tempo:
-    image: grafana/tempo:2.3.1
+    image: grafana/tempo:2.6.1
     container_name: centralwatch-tempo
     restart: unless-stopped
     command: ["-config.file=/etc/tempo/tempo.yaml"]
@@ -81,7 +193,7 @@ services:
       - ./configs/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-storage:/var/tempo
     ports:
-      - "3200:3200" # Tempo HTTP/ready and search API
+      - "3200:3200"
     networks:
       - centralwatch-network
     healthcheck:
@@ -95,19 +207,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Grafana Service
-  # Visualization dashboard for Metrics (Prometheus), Logs (Loki), and Traces (Tempo).
+  # Grafana — visualization for Prometheus (metrics), Loki (logs), Tempo (traces).
+  # Pinned to Grafana 12.4 (the dashboards are authored for Grafana 12 schema and the
+  # tracing dashboards need the grafana-tempo datasource with backend TraceQL search,
+  # available in Grafana >= 12.2).
   grafana:
-    image: grafana/grafana:10.2.3
+    image: grafana/grafana:12.4.0
     container_name: centralwatch-grafana
     restart: unless-stopped
     ports:
-      - "3000:3000" # Grafana Web UI
+      - "3000:3000"
     volumes:
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-storage:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - centralwatch-network
@@ -122,17 +237,38 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Frontend — serves the prebuilt React SPA and proxies /api/* to the backend
+  # (the bundle calls /api/... on the same origin). No monitoring involvement.
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: centralwatch-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./configs/nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - demo-app
+    networks:
+      - centralwatch-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
-  # Dedicated bridge network for secure container-to-container communication
+  # One explicitly named bridge network shared by EVERY service, so the demo
+  # app can resolve otel-collector and localstack by service name and the
+  # LocalStack Lambda sidecar joins the same network.
   centralwatch-network:
+    name: centralwatch-network
     driver: bridge
 
 volumes:
-  # Persistent volume for Prometheus metrics data
   prometheus-storage:
-  # Persistent volume for Loki logs data
   loki-storage:
-  # Persistent volume for Tempo traces data
   tempo-storage:
-  # Persistent volume for Grafana configurations/dashboards
   grafana-storage:
+  localstack-storage:

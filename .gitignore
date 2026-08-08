@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------
+# CentralWatch — repository hygiene
+# ---------------------------------------------------------------
+
+# --- Secrets (never commit) ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / frontend ---
+# node_modules is a build dependency cache and must never be tracked.
+frontend/node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# --- Build & Docker artifacts ---
+*.log
+*.tmp
+docker-compose.override.yml
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- OS ---
+desktop.ini

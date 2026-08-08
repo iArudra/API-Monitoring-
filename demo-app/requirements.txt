@@ -1,0 +1,21 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# --- Validation & config ---
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# --- AWS SDK (against LocalStack) ---
+boto3==1.35.63
+
+# --- OpenTelemetry SDK & OTLP (HTTP/protobuf) export ---
+opentelemetry-api==1.27.0
+opentelemetry-sdk==1.27.0
+opentelemetry-exporter-otlp-proto-http==1.27.0
+
+# --- OpenTelemetry automatic instrumentation ---
+opentelemetry-instrumentation-fastapi==0.48b0
+opentelemetry-instrumentation-asgi==0.48b0
+opentelemetry-instrumentation-botocore==0.48b0

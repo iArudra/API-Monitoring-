@@ -1,0 +1,560 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "CentralWatch AWS service activity derived from traces in Tempo. Each table lists traces containing spans for the given AWS service (S3.PutObject/DeleteObject/ListBuckets, Lambda.Invoke, SNS publish (\"centralwatch-notifications send\"), SQS.SendMessage/ReceiveMessage/DeleteMessageBatch, DynamoDB.PutItem/GetItem/Query/Scan/DeleteItem). Click a row to load its trace into the AWS Trace Waterfall. NOTE: TraceQL uses the verified AWS span-name contract; no aggregates are used because they require Tempo >= 2.4.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "description": "TraceQL tables of traces containing spans for each AWS service, and the waterfall of the selected trace.",
+      "panels": [],
+      "title": "AWS Service Operations",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Traces containing S3 spans: S3.PutObject, S3.DeleteObject, S3.ListBuckets.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "links": [
+        {
+          "title": "Open trace in waterfall",
+          "url": "/d/centralwatch-aws-services?var-traceId=${__value.raw}"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Duration"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { name =~ \"S3.PutObject|S3.DeleteObject|S3.ListBuckets\" } | select(name, status, duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "S3 Operations",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Traces containing Lambda.Invoke spans.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 3,
+      "links": [
+        {
+          "title": "Open trace in waterfall",
+          "url": "/d/centralwatch-aws-services?var-traceId=${__value.raw}"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Duration"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { name = \"Lambda.Invoke\" } | select(name, status, duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "Lambda Invocations",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Traces containing SNS publish spans (this botocore version names SNS producers \"centralwatch-notifications send\").",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 4,
+      "links": [
+        {
+          "title": "Open trace in waterfall",
+          "url": "/d/centralwatch-aws-services?var-traceId=${__value.raw}"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Duration"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { name =~ \"centralwatch-.* send\" } | select(name, status, duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "SNS Publishes",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Traces containing SQS spans: SQS.SendMessage, SQS.ReceiveMessage, SQS.DeleteMessageBatch.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 5,
+      "links": [
+        {
+          "title": "Open trace in waterfall",
+          "url": "/d/centralwatch-aws-services?var-traceId=${__value.raw}"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Duration"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { name =~ \"SQS.SendMessage|SQS.ReceiveMessage|SQS.DeleteMessageBatch\" } | select(name, status, duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "SQS Messages",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Traces containing DynamoDB spans: DynamoDB.PutItem, DynamoDB.GetItem, DynamoDB.Query, DynamoDB.Scan, DynamoDB.DeleteItem.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "id": 6,
+      "links": [
+        {
+          "title": "Open trace in waterfall",
+          "url": "/d/centralwatch-aws-services?var-traceId=${__value.raw}"
+        }
+      ],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Duration"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { name =~ \"DynamoDB.PutItem|DynamoDB.GetItem|DynamoDB.Query|DynamoDB.Scan|DynamoDB.DeleteItem\" } | select(name, status, duration)",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "DynamoDB Operations",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "tempo",
+        "uid": "${DS_TEMPO}"
+      },
+      "description": "Full waterfall of the trace selected via the $traceId variable. Select a trace by clicking any row in the AWS tables above (fills $traceId), or type a Trace ID directly into the variable.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "id": 7,
+      "options": {},
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TEMPO}"
+          },
+          "query": "{ resource.service.name =~ \"$service\" } && { trace:id = \"${traceId}\" }",
+          "queryType": "traceql",
+          "refId": "A"
+        }
+      ],
+      "title": "AWS Trace Waterfall",
+      "type": "traces"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "style": "dark",
+  "tags": [
+    "centralwatch",
+    "observability",
+    "aws",
+    "traces"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "Tempo",
+          "value": "Tempo"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Tempo",
+        "multi": false,
+        "name": "DS_TEMPO",
+        "options": [],
+        "query": "tempo",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "centralwatch-demo-app",
+          "value": "centralwatch-demo-app"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Service",
+        "multi": false,
+        "name": "service",
+        "options": [
+          {
+            "selected": true,
+            "text": "centralwatch-demo-app",
+            "value": "centralwatch-demo-app"
+          }
+        ],
+        "query": "centralwatch-demo-app",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "00000000000000000000000000000000",
+          "value": "00000000000000000000000000000000"
+        },
+        "hide": 0,
+        "label": "Trace ID",
+        "name": "traceId",
+        "options": [
+          {
+            "selected": false,
+            "text": "00000000000000000000000000000000",
+            "value": "00000000000000000000000000000000"
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "CentralWatch — AWS Services",
+  "uid": "centralwatch-aws-services",
+  "version": 1,
+  "weekStart": ""
+}

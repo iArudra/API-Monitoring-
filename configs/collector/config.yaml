@@ -36,6 +36,12 @@ exporters:
     namespace: centralwatch
     send_timestamps: true
     metric_expiration: 5m
+    # Convert resource attributes (deployment.environment, service.name, ...)
+    # to Prometheus labels. This is how the `deployment_environment` label gets its
+    # value (development vs production) straight from the app's ENVIRONMENT setting,
+    # so Prometheus needs no hardcoded value and no env expansion of its own.
+    resource_to_telemetry_conversion:
+      enabled: true
 
   # Loki Exporter for shipping logs
   loki:

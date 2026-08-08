@@ -16,16 +16,20 @@ echo "=================================================="
 # Navigate to project root containing docker-compose.yml
 cd "${PROJECT_ROOT}"
 
-# Start services using Docker Compose
-docker compose up -d
+# Build (if needed) and start all services using Docker Compose.
+# --build ensures a fresh clone with no pre-built images reproduces the stack.
+docker compose up -d --build
 
 echo "--------------------------------------------------"
 echo "Services started successfully!"
-echo "OTel Collector Port: 4317 (gRPC) & 4318 (HTTP)"
-echo "Prometheus Web UI:  http://localhost:9090"
-echo "Loki API Endpoint:  http://localhost:3100"
-echo "Tempo Endpoint:      http://localhost:3200"
-echo "Grafana Web UI:      http://localhost:3000 (admin / admin)"
+echo "Frontend (nginx SPA): http://localhost:8080"
+echo "FastAPI Demo App:     http://localhost:8000 (docs: /docs)"
+echo "LocalStack (AWS):     http://localhost:4566"
+echo "OTel Collector Port:  4317 (gRPC) & 4318 (HTTP)"
+echo "Prometheus Web UI:    http://localhost:9090"
+echo "Loki API Endpoint:    http://localhost:3100"
+echo "Tempo Endpoint:       http://localhost:3200"
+echo "Grafana Web UI:       http://localhost:3000 (admin / admin by default)"
 echo "--------------------------------------------------"
 echo "Run healthcheck.sh to verify full connectivity."
 echo "=================================================="

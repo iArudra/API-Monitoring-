@@ -21,7 +21,10 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']
         labels:
-          environment: 'production'
+          # `deployment_environment` is intentionally NOT set here: the collector's
+          # prometheus exporter converts the app's deployment.environment resource
+          # attribute into that label (see collector config.yaml), so it always
+          # matches the running mode (development vs production).
           service: 'centralwatch-collector'
 
   # Scrape job for Prometheus itself to monitor its own performance metrics.
@@ -29,5 +32,4 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
         labels:
-          environment: 'production'
           service: 'prometheus-internal'
