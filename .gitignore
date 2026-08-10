@@ -1,41 +1,324 @@
-# ---------------------------------------------------------------
-# CentralWatch — repository hygiene
-# ---------------------------------------------------------------
+# ============================================================
 
-# --- Secrets (never commit) ---
+# CentralWatch — Git Ignore
+
+# ============================================================
+
+# ------------------------------------------------------------
+
+# Environment / Secrets
+
+# ------------------------------------------------------------
+
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+!.env.aws.example
 
-# --- Python ---
-__pycache__/
+# Local environment files
+
+demo-app/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Secret / credential files
+
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials
+credentials.json
+aws-credentials
+.aws/
+**/.aws/
+
+# ------------------------------------------------------------
+
+# Python
+
+# ------------------------------------------------------------
+
+**pycache**/
 *.py[cod]
+*$py.class
+
+*.so
+*.egg
 *.egg-info/
-.venv/
-venv/
+.eggs/
+dist/
+build/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+pip-wheel-metadata/
+share/python-wheels/
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pyre/
+.pytype/
 
-# --- Node / frontend ---
-# node_modules is a build dependency cache and must never be tracked.
-frontend/node_modules/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+.tox/
+.nox/
+
+.ipynb_checkpoints/
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ------------------------------------------------------------
+
+# Node / React / Vite
+
+# ------------------------------------------------------------
+
+node_modules/
+**/node_modules/
+
 npm-debug.log*
+yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# --- Build & Docker artifacts ---
-*.log
-*.tmp
-docker-compose.override.yml
+.npm/
+.yarn/
+.pnpm-store/
 
-# --- IDE / editor ---
+# Vite
+
+dist/
+**/dist/
+.vite/
+**/.vite/
+
+# React / frontend build output
+
+build/
+**/build/
+
+# TypeScript
+
+*.tsbuildinfo
+
+# ------------------------------------------------------------
+
+# IDE / Editors
+
+# ------------------------------------------------------------
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
 .idea/
-.vscode/
+*.iml
+
 *.swp
 *.swo
+*~
+
+# ------------------------------------------------------------
+
+# OS
+
+# ------------------------------------------------------------
+
 .DS_Store
 Thumbs.db
-
-# --- OS ---
 desktop.ini
+
+# ------------------------------------------------------------
+
+# Logs
+
+# ------------------------------------------------------------
+
+*.log
+logs/
+*.out
+
+# ------------------------------------------------------------
+
+# Docker
+
+# ------------------------------------------------------------
+
+docker-compose.override.yml
+
+# Local Docker data
+
+.docker/
+docker-data/
+
+# ------------------------------------------------------------
+
+# Test / Temporary files
+
+# ------------------------------------------------------------
+
+tmp/
+temp/
+.tmp/
+.cache/
+
+*.tmp
+*.temp
+
+# Test artifacts
+
+test-results/
+playwright-report/
+blob-report/
+
+# ------------------------------------------------------------
+
+# Generated files
+
+# ------------------------------------------------------------
+
+*.generated.*
+*.local.*
+
+# ------------------------------------------------------------
+
+# LocalStack
+
+# ------------------------------------------------------------
+
+.localstack/
+localstack-data/
+localstack-storage/
+**/localstack-data/
+**/localstack-storage/
+
+# ------------------------------------------------------------
+
+# AWS CLI / SAM / CDK local artifacts
+
+# ------------------------------------------------------------
+
+.aws-sam/
+.sam/
+cdk.out/
+
+# ------------------------------------------------------------
+
+# Generated archives
+
+# ------------------------------------------------------------
+
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# ------------------------------------------------------------
+
+# Generated reports / exports
+
+# ------------------------------------------------------------
+
+*.pdf
+*.xlsx
+*.csv
+
+# Keep intentional documentation tracked
+
+!docs/
+!docs/**/*.md
+
+# ------------------------------------------------------------
+
+# Coverage / profiling
+
+# ------------------------------------------------------------
+
+.prof
+*.prof
+.pytest_cache/
+htmlcov/
+
+# ------------------------------------------------------------
+
+# Backup files
+
+# ------------------------------------------------------------
+
+*.bak
+*.backup
+*.orig
+*.old
+
+# ------------------------------------------------------------
+
+# Generated Lambda packages
+
+# ------------------------------------------------------------
+
+lambda-package/
+lambda-build/
+**/lambda-package/
+**/lambda-build/
+
+# ------------------------------------------------------------
+
+# Generated frontend artifacts
+
+# ------------------------------------------------------------
+
+frontend/coverage/
+frontend/.eslintcache
+
+# ------------------------------------------------------------
+
+# Generated backend artifacts
+
+# ------------------------------------------------------------
+
+demo-app/coverage/
+demo-app/.pytest_cache/
+
+# ------------------------------------------------------------
+
+# Project-local temporary files
+
+# ------------------------------------------------------------
+
+*.local.json
+*.local.yaml
+*.local.yml
+
+# ------------------------------------------------------------
+
+# Keep example configuration files tracked
+
+# ------------------------------------------------------------
+
+!.env.example
+!.env.aws.example
