@@ -78,13 +78,18 @@ validation + runtime permissions. If you ever run provisioning mode on real AWS
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:HeadBucket",
-        "s3:ListAllMyBuckets"
+        "s3:HeadBucket"
       ],
       "Resource": [
         "arn:aws:s3:::centralwatch-files",
         "arn:aws:s3:::centralwatch-files/*"
       ]
+    },
+    {
+      "Sid": "S3ListBuckets",
+      "Effect": "Allow",
+      "Action": ["s3:ListAllMyBuckets"],
+      "Resource": "*"
     },
     {
       "Sid": "DynamoDB",
@@ -107,11 +112,16 @@ validation + runtime permissions. If you ever run provisioning mode on real AWS
     {
       "Sid": "SNS",
       "Effect": "Allow",
-      "Action": ["sns:ListTopics", "sns:Publish"],
+      "Action": ["sns:Publish"],
       "Resource": [
-        "arn:aws:sns:*:*:centralwatch-notifications",
-        "arn:aws:sns:*:*:*"
+        "arn:aws:sns:*:*:centralwatch-notifications"
       ]
+    },
+    {
+      "Sid": "SNSListTopics",
+      "Effect": "Allow",
+      "Action": ["sns:ListTopics"],
+      "Resource": "*"
     },
     {
       "Sid": "SQS",
@@ -148,7 +158,10 @@ validation + runtime permissions. If you ever run provisioning mode on real AWS
 ```
 
 Notes:
-- `sns:ListTopics` needs `"*"` (ListTopics is not ARN-scoped); `Publish` is scoped to the topic.
+- `sns:ListTopics` and `s3:ListAllMyBuckets` are **service-level actions**: they are not
+  ARN-scoped, so they require `"Resource": "*"`. (Scoping them to a specific resource ARN
+  does **not** grant the action.) `Publish` stays scoped to the topic and the S3 object
+  actions stay scoped to the bucket.
 - The SNS/SQS services keep an *idempotent create fallback* (`sns:CreateTopic` / `sqs:CreateQueue`)
   as a LocalStack/dev convenience. On real AWS it never runs in the happy path because startup
   validation already guarantees the topic/queue exist — so the runtime role does not need those

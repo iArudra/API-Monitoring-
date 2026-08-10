@@ -278,9 +278,29 @@ class AwsResourceManager:
         for definition in self._table_definitions():
             name = definition["TableName"]
             try:
-                dynamodb.describe_table(TableName=name)
+                table = dynamodb.describe_table(TableName=name)["Table"]
             except Exception as exc:  # noqa: BLE001
                 missing.append(f"DynamoDB table '{name}': {_describe(exc)}")
+                continue
+
+            # Verify every GSI the application relies on (e.g. the users table's
+            # email-index) exists with the expected key schema. This is checked
+            # only in validate mode (real AWS) — provisioning never changes.
+            indexes = {idx["IndexName"]: idx for idx in table.get("GlobalSecondaryIndexes", [])}
+            for gsi in definition.get("GlobalSecondaryIndexes", []):
+                index_name = gsi["IndexName"]
+                if index_name not in indexes:
+                    missing.append(
+                        f"DynamoDB table '{name}' is missing GSI '{index_name}' "
+                        f"(required by the application: {index_name})"
+                    )
+                    continue
+                actual_schema = indexes[index_name].get("KeySchema")
+                if actual_schema != gsi["KeySchema"]:
+                    missing.append(
+                        f"DynamoDB table '{name}' GSI '{index_name}' has unexpected key schema "
+                        f"{actual_schema}; expected {gsi['KeySchema']}"
+                    )
 
         sns = self._client("sns")
         try:

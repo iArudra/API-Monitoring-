@@ -1,11 +1,28 @@
 #!/usr/bin/env bash
 # healthcheck.sh - Deep health verification for CentralWatch monitoring stack.
 # Checks container status, HTTP readiness, and Prometheus target scrape status.
+#
+# Mode-aware:
+#   localstack (default) - the dev stack (docker-compose.yml); verifies the
+#                          LocalStack container as well.
+#   aws                  - the production stack (docker-compose.aws.yml); never
+#                          requires LocalStack. Verifies demo-app,
+#                          otel-collector, prometheus, loki, tempo, grafana and
+#                          their HTTP health endpoints.
+#
+# Usage:
+#   ./scripts/healthcheck.sh [localstack|aws]
 
 set -eo pipefail
 
+MODE="${1:-localstack}"
+case "$MODE" in
+  localstack|aws) ;;
+  *) echo "Error: unknown mode '$MODE' (use 'localstack' or 'aws')." >&2; exit 2 ;;
+esac
+
 echo "=================================================="
-echo "Starting CentralWatch Health Check..."
+echo "Starting CentralWatch Health Check (mode: $MODE)..."
 echo "=================================================="
 
 # Check if curl is installed
@@ -16,7 +33,12 @@ fi
 
 # 1. Verify Docker containers are running
 echo "Checking Docker containers..."
-CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana" "centralwatch-demo-app" "centralwatch-localstack" "centralwatch-frontend")
+if [ "$MODE" = "aws" ]; then
+  # Real AWS stack: no LocalStack container (and the frontend is optional there).
+  CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana" "centralwatch-demo-app")
+else
+  CONTAINERS=("centralwatch-otel-collector" "centralwatch-prometheus" "centralwatch-loki" "centralwatch-tempo" "centralwatch-grafana" "centralwatch-demo-app" "centralwatch-localstack" "centralwatch-frontend")
+fi
 ALL_RUNNING=true
 
 for container in "${CONTAINERS[@]}"; do
