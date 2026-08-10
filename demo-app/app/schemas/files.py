@@ -1,6 +1,6 @@
 """File upload/response schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class FileUploadResponse(BaseModel):
@@ -14,6 +14,8 @@ class FileUploadResponse(BaseModel):
 
 
 class FileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     file_id: str
     name: str
     size: int
@@ -27,3 +29,8 @@ class FileOut(BaseModel):
 class FileDeletedResponse(BaseModel):
     file_id: str
     deleted: bool = True
+
+
+class FileListOut(BaseModel):
+    files: list[FileOut]
+    count: int

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from ..deps import get_container, require_auth
 from ..models.file_record import FileRecord
-from ..schemas.files import FileDeletedResponse, FileOut, FileUploadResponse
+from ..schemas.files import FileDeletedResponse, FileListOut, FileOut, FileUploadResponse
 from ..services import Container
 from ..utils.ids import new_id, now_iso
 
@@ -44,6 +44,13 @@ async def upload_file(
     await asyncio.to_thread(container.dynamodb.put_item, container.dynamodb.files_table, record.to_item())
     container.metrics.file_uploads.add(1, {"status": "ok"})
     return record
+
+
+@router.get("", response_model=FileListOut, summary="List files (DynamoDB scan)")
+def list_files(container: Container = Depends(get_container)) -> FileListOut:
+    items = container.dynamodb.scan(container.dynamodb.files_table, limit=50)
+    files = [FileRecord.from_item(item) for item in items]
+    return FileListOut(files=files, count=len(files))
 
 
 @router.get("/{file_id}", response_model=FileOut, summary="Get file metadata and presigned download URL (S3)")
