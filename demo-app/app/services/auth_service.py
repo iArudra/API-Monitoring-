@@ -24,7 +24,7 @@ class AuthService:
         self.dynamodb = dynamodb_service
 
     # ------------------------------------------------------------------ public
-    def register(self, email: str, password: str, name: str) -> User:
+    def register(self, email: str, password: str, name: str, allowed_cidrs: list[str] = None) -> User:
         email = email.strip().lower()
         with business_span(
             "User Registration",
@@ -34,7 +34,14 @@ class AuthService:
         ):
             if self.dynamodb.query_by_email(email):
                 raise HTTPException(status_code=409, detail="A user with this email already exists")
-            user = User(user_id=f"usr_{uuid4().hex[:12]}", email=email, name=name, created_at=now_iso())
+            user = User(
+                user_id=f"usr_{uuid4().hex[:12]}", 
+                email=email, 
+                name=name, 
+                created_at=now_iso(),
+                status="ACTIVE",
+                allowed_cidrs=allowed_cidrs or ["0.0.0.0/0"]
+            )
             item = user.to_item()
             item["password_hash"] = self._hash_password(password)
             self.dynamodb.put_item(self.dynamodb.users_table, item)

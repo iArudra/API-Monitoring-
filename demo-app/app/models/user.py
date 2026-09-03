@@ -1,6 +1,6 @@
 """User domain model (stored in DynamoDB)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -9,6 +9,8 @@ class User:
     email: str
     name: str
     created_at: str
+    status: str = "ACTIVE"
+    allowed_cidrs: list[str] = field(default_factory=lambda: ["0.0.0.0/0"])
 
     def to_item(self) -> dict:
         return {
@@ -16,6 +18,8 @@ class User:
             "email": self.email,
             "name": self.name,
             "created_at": self.created_at,
+            "status": self.status,
+            "allowed_cidrs": self.allowed_cidrs,
         }
 
     @classmethod
@@ -25,4 +29,6 @@ class User:
             email=item["email"],
             name=item.get("name", ""),
             created_at=item.get("created_at", ""),
+            status=item.get("status", "ACTIVE"),
+            allowed_cidrs=item.get("allowed_cidrs", ["0.0.0.0/0"]),
         )

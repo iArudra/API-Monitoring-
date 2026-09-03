@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserOut, status_code=201, summary="Register a new user (DynamoDB)")
 def register(body: RegisterRequest, container: Container = Depends(get_container)) -> UserOut:
-    return container.auth.register(body.email, body.password, body.name)
+    return container.auth.register(body.email, body.password, body.name, body.allowed_cidrs)
 
 
 @router.post("/login", response_model=LoginResponse, summary="Login and get a bearer token (DynamoDB)")

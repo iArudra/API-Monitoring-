@@ -18,6 +18,7 @@ class RegisterRequest(BaseModel):
     )
     password: str = Field(min_length=6, max_length=128)
     name: str = Field(min_length=1, max_length=100, examples=["Alice"])
+    allowed_cidrs: list[str] = Field(default=["0.0.0.0/0"])
 
 
 class LoginRequest(BaseModel):
@@ -32,6 +33,8 @@ class UserOut(BaseModel):
     email: str
     name: str
     created_at: str
+    status: str
+    allowed_cidrs: list[str]
 
 
 class LoginResponse(BaseModel):
