@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
-from centralwatch_security import security_router
+from centralwatch_security import SecurityEnforcementMiddleware, security_router
 
 from .config.settings import get_settings
 from .routes import auth, files, images, notifications, orders, queue, simulate
@@ -226,6 +226,25 @@ def create_app() -> FastAPI:
     instrument_app(app, settings)
 
     app.state.container = Container(settings)
+
+    async def fetch_user_security_policy(req: Request):
+        auth_header = req.headers.get("Authorization", "")
+        token = auth_header.removeprefix("Bearer ").strip()
+        if not token:
+            return None
+        
+        container = req.app.state.container
+        try:
+            user = container.auth.get_profile(token)
+            return {
+                "status": user.status,
+                "allowed_cidrs": user.allowed_cidrs,
+                "user_id": user.user_id
+            }
+        except Exception:
+            return None
+
+    app.add_middleware(SecurityEnforcementMiddleware, get_policy_callback=fetch_user_security_policy)
 
     app.add_exception_handler(ClientError, _aws_exception_handler)
     app.add_exception_handler(BotoCoreError, _aws_exception_handler)

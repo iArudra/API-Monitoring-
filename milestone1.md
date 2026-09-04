@@ -65,3 +65,32 @@ Additionally, the `/centralwatch/security-scan` endpoint was mounted directly wi
 1. **`demo-app/app/routes/auth.py`:** Updated the `/auth/profile` route signature to use `token: str = Depends(require_auth)`.
 2. **`demo-app/app/main.py`:** Added `dependencies=[Depends(require_auth)]` to the `security_router` mounting.
 3. **Verified:** Confirmed that *all* functional endpoints (`/files`, `/orders`, `/images`, `/notifications`, `/queue`, `/simulate`, `/auth/profile`, and `/centralwatch/security-scan`) are now strictly locked behind the Hybrid Security Gateway. Only the registration, login, and health check endpoints remain public.
+
+---
+
+# Testing & Validation
+
+To ensure the security policies are correctly enforced, we performed the following validation checks.
+
+## Scenario 1: Accessing an Endpoint from a Restricted IP
+When an API key is restricted to a specific IP subnet (e.g., `10.0.0.0/8`) and the request comes from an outside IP (like `127.0.0.1`), the Security Gateway automatically intercepts the request.
+
+**Expected Result:**
+- The request is immediately blocked.
+- HTTP Status Code: `403 Forbidden`
+- Response Body: `{"detail": "Access denied: IP outside allowed subnet"}`
+- A structured `IP_SUBNET_VIOLATION` event is dispatched to Loki and OpenTelemetry.
+
+## Scenario 2: Successful Access with a Valid Token and IP
+To bypass the IP restriction during local testing (or testing from an unauthorized network), the user must register an account with a universally open CIDR or their exact IP.
+
+**Resolution:**
+Create a new admin user with full access (`0.0.0.0/0`) to test administrative endpoints like the security scanner.
+
+1. Register new admin:
+   ```json
+   POST /auth/register
+   {"email": "admin@test.com", "password": "password123", "name": "Admin", "allowed_cidrs": ["0.0.0.0/0"]}
+   ```
+2. Retrieve the new token via `/auth/login`.
+3. Use the new token to successfully trigger protected endpoints (e.g., `POST /centralwatch/security-scan`). The Gateway will validate the `0.0.0.0/0` rule and allow the request to pass.
