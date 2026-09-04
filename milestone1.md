@@ -51,3 +51,17 @@ Created a new top-level directory `centralwatch-security` and initialized it as 
 
 ## Next Steps
 This powerful plugin is now ready! Any application in your organization can use it to instantly gain enterprise-grade API protection and OWASP vulnerability scanning out of the box.
+
+---
+
+# Bug Fixes & Refinements
+
+## Securing Bypassed Endpoints (Security Gateway)
+During testing, it was discovered that the `/auth/profile` endpoint was bypassing the Hybrid Security Gateway. This was because it manually extracted the token via a header instead of passing through the `require_auth` dependency injection pipeline. 
+
+Additionally, the `/centralwatch/security-scan` endpoint was mounted directly without protection.
+
+### Fixes Applied:
+1. **`demo-app/app/routes/auth.py`:** Updated the `/auth/profile` route signature to use `token: str = Depends(require_auth)`.
+2. **`demo-app/app/main.py`:** Added `dependencies=[Depends(require_auth)]` to the `security_router` mounting.
+3. **Verified:** Confirmed that *all* functional endpoints (`/files`, `/orders`, `/images`, `/notifications`, `/queue`, `/simulate`, `/auth/profile`, and `/centralwatch/security-scan`) are now strictly locked behind the Hybrid Security Gateway. Only the registration, login, and health check endpoints remain public.

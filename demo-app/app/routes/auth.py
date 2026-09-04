@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from ..deps import get_container
+from ..deps import get_container, require_auth
 from ..schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserOut
 from ..services import Container
 
@@ -21,10 +21,7 @@ def login(body: LoginRequest, container: Container = Depends(get_container)) -> 
 
 @router.get("/profile", response_model=UserOut, summary="Get the current user profile (DynamoDB)")
 def profile(
-    authorization: str = Header(default=""),
+    token: str = Depends(require_auth),
     container: Container = Depends(get_container),
 ) -> UserOut:
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing bearer token")
     return container.auth.get_profile(token)

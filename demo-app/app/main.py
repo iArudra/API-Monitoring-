@@ -10,15 +10,18 @@ import time
 from contextlib import asynccontextmanager
 
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
+
+from centralwatch_security import security_router
 
 from .config.settings import get_settings
 from .routes import auth, files, images, notifications, orders, queue, simulate
 from .routes.simulate import SimulatedAWSError, SimulatedFailure
 from .services import Container
+from .deps import require_auth
 from .telemetry.instrumentation import configure_telemetry, instrument_app, shutdown_telemetry
 from .telemetry.logging import get_logger, setup_logging
 from .utils.aws import aws_error_response
@@ -246,6 +249,7 @@ def create_app() -> FastAPI:
     app.include_router(queue.router)
     app.include_router(images.router)
     app.include_router(simulate.router)
+    app.include_router(security_router, prefix="/centralwatch", dependencies=[Depends(require_auth)])
 
     @app.get("/healthz", tags=["health"])
     async def healthz(request: Request):

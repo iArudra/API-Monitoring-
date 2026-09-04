@@ -39,7 +39,9 @@ services:
   # calling AWS (LocalStack in this file). Built from demo-app/ so a fresh
   # clone needs no pre-existing image.
   demo-app:
-    build: ./demo-app
+    build: 
+      context: .
+      dockerfile: demo-app/Dockerfile
     image: centralwatch-demo-app:local
     container_name: centralwatch-demo-app
     restart: unless-stopped

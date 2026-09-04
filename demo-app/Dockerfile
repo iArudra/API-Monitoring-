@@ -21,13 +21,26 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install dependencies first so layer caching stays effective across source edits.
-COPY requirements.txt .
+RUN apt-get update && \
+    apt-get install -y wget apt-transport-https gnupg curl && \
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - && \
+    echo "deb https://packages.adoptium.net/artifactory/deb bookworm main" > /etc/apt/sources.list.d/adoptium.list && \
+    apt-get update && \
+    apt-get install -y temurin-21-jre && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY demo-app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy centralwatch-security plugin and install it
+COPY centralwatch-security /centralwatch-security
+RUN pip install -e /centralwatch-security
+
 # Application source + startup script.
-COPY app ./app
-COPY entrypoint.sh .
-RUN chmod +x /app/entrypoint.sh
+COPY demo-app/app ./app
+COPY demo-app/entrypoint.sh .
+COPY scripts/security_scan.sh /scripts/security_scan.sh
+RUN chmod +x /app/entrypoint.sh && chmod +x /scripts/security_scan.sh
 
 EXPOSE 8000
 
