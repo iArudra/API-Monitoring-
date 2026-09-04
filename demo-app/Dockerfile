@@ -20,15 +20,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install dependencies first so layer caching stays effective across source edits.
-RUN apt-get update && \
-    apt-get install -y wget apt-transport-https gnupg curl && \
-    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - && \
-    echo "deb https://packages.adoptium.net/artifactory/deb bookworm main" > /etc/apt/sources.list.d/adoptium.list && \
-    apt-get update && \
-    apt-get install -y temurin-21-jre && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY demo-app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
