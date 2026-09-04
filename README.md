@@ -238,3 +238,52 @@ curl -s http://localhost:8000/readyz     # readiness (checks AWS reachability)
 ├── docker-compose.aws.yml       # production stack (real AWS)
 └── AWS_DEPLOYMENT.md            # resources, IAM, production runbook
 ```
+
+## 10. CentralWatch Security Plugin
+
+We provide an enterprise-grade API Security plugin built as a standalone Python package: `centralwatch-security`. This plugin provides:
+- **Hybrid Security Gateway:** Automatic IP CIDR whitelisting and API Key Revocation checks via a generic middleware.
+- **OWASP ASTF Scanner Trigger:** A built-in FastAPI router to trigger automated OWASP API Top 10 vulnerability scans (`/security-scan`).
+- **Telemetry Integration:** Automatic logging of security violations into OpenTelemetry traces and Loki.
+
+### Installation
+You can install the plugin in any FastAPI project locally:
+```bash
+pip install -e ./centralwatch-security
+```
+
+### Usage in FastAPI
+In your FastAPI application (`main.py`):
+```python
+from fastapi import FastAPI, Request
+from centralwatch_security import SecurityEnforcementMiddleware, security_router
+
+app = FastAPI()
+
+# 1. Define how your app retrieves policies (from a DB like DynamoDB or Postgres)
+async def fetch_user_security_policy(request: Request):
+    # Retrieve user token from header, fetch from DB
+    # Example return format:
+    return {
+        "status": "ACTIVE",              # or "REVOKED"
+        "allowed_cidrs": ["10.0.0.0/8"], # list of allowed IPs
+        "user_id": "usr_123"
+    }
+
+# 2. Attach the Middleware
+app.add_middleware(
+    SecurityEnforcementMiddleware, 
+    get_policy_callback=fetch_user_security_policy
+)
+
+# 3. Mount the OWASP Scanner Endpoint
+app.include_router(security_router, prefix="/centralwatch")
+```
+
+### Testing the Plugin
+To test the plugin locally:
+1. Ensure the package is installed: `pip install -e centralwatch-security`.
+2. Start your FastAPI server.
+3. Make a request from an IP address not listed in `allowed_cidrs` (e.g., `192.168.1.5`).
+4. You will receive a `403 Forbidden` with the message: `Access denied: IP outside allowed subnet`.
+5. Check your Loki logs and OpenTelemetry traces to see the generated `IP_SUBNET_VIOLATION` security event.
