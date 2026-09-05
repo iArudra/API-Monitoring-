@@ -252,6 +252,54 @@ You can install the plugin in any FastAPI project locally:
 pip install -e ./centralwatch-security
 ```
 
+### Running the ASTF scan in CentralWatch
+
+In the Docker image, the scanner runtime includes Java and `curl`. The first scan
+downloads the official OWASP ASTF v2.0.1 JAR. A scan runs synchronously and the API
+returns success only after ASTF has completed and written a non-empty HTML report.
+
+The CentralWatch application protects this endpoint with the same bearer-token and
+CIDR enforcement as the other business endpoints:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+   -H 'Content-Type: application/json' \
+   -d '{"email":"alice@example.com","password":"secret123"}' \
+   | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
+curl -s -X POST \
+   'http://localhost:8000/centralwatch/security-scan?target_url=http://127.0.0.1:8000' \
+   -H "Authorization: Bearer $TOKEN"
+```
+
+The report is generated inside the demo-app container at
+`/app/reports/security-report.html`. ASTF exit code `0` means no findings; exit code
+`1` means the scan completed with findings. Both are successful scan executions when
+the report exists and is non-empty. Download, Java, execution, timeout, exit code `2+`,
+missing-report, and empty-report failures return an error response.
+
+Verify the generated report:
+
+```bash
+docker exec centralwatch-demo-app sh -c "ls -lah /app/reports/"
+docker exec centralwatch-demo-app sh -c \
+   "test -s /app/reports/security-report.html && echo 'REPORT EXISTS'"
+```
+
+The report exists inside the container unless you copy it to the host. On Windows,
+run this from the repository root to save it as `D:\API-Monitoring--1\security-report.html`:
+
+```powershell
+docker cp centralwatch-demo-app:/app/reports/security-report.html .\security-report.html
+```
+
+You can then open `security-report.html` locally with a browser or inspect its first
+lines with:
+
+```powershell
+Get-Content .\security-report.html -TotalCount 20
+```
+
 ### Usage in FastAPI
 In your FastAPI application (`main.py`):
 ```python

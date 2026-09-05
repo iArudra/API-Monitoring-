@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWASP ASTF Security Report</title>
+  <style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       margin: 0; padding: 0; background: #f5f5f5; color: #333; }
+.header { background: #2c3e50; color: white; padding: 24px 32px; }
+.header h1 { margin: 0; font-size: 1.8em; }
+.header p { margin: 4px 0 0; opacity: 0.8; }
+.container { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
+.summary { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px;
+           box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.summary h2 { margin-top: 0; color: #2c3e50; }
+.severity-grid { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.severity-card { flex: 1; min-width: 100px; border-radius: 8px; padding: 16px;
+                 text-align: center; color: white; }
+.severity-card .count { font-size: 2.5em; font-weight: bold; }
+.severity-card .label { font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
+.severity-critical { background: #c0392b; }
+.severity-high     { background: #e67e22; }
+.severity-medium   { background: #f39c12; }
+.severity-low      { background: #27ae60; }
+.severity-info     { background: #2980b9; }
+.finding { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px;
+           box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ccc; }
+.finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.badge { padding: 4px 10px; border-radius: 4px; font-size: 0.75em; font-weight: bold;
+         color: white; text-transform: uppercase; }
+.badge-critical { background: #c0392b; }
+.badge-high     { background: #e67e22; }
+.badge-medium   { background: #f39c12; }
+.badge-low      { background: #27ae60; }
+.badge-info     { background: #2980b9; }
+.test-id { font-size: 0.8em; color: #666; background: #f0f0f0; padding: 2px 6px;
+           border-radius: 3px; font-family: monospace; }
+.remediation { background: #e8f4fd; border-left: 3px solid #2980b9; padding: 10px 14px;
+               border-radius: 0 4px 4px 0; margin-top: 10px; }
+code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: monospace;
+       font-size: 0.9em; word-break: break-all; }
+.no-findings { background: #d5f5e3; border-radius: 8px; padding: 24px;
+               text-align: center; color: #1e8449; font-size: 1.1em; }
+.footer { text-align: center; padding: 24px; color: #999; font-size: 0.85em; }
+h2 { color: #2c3e50; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>OWASP API Security Testing Framework</h1>
+  <p>Security Scan Report</p>
+</div>
+<div class="container">
+<div class="summary">
+  <h2>Scan Summary</h2>
+  <p><strong>Target:</strong> http://127.0.0.1:8000/</p>
+  <p><strong>Start:</strong> 2026-09-05 07:25:32</p>
+  <p><strong>End:</strong> 2026-09-05 07:25:58</p>
+  <p><strong>Total Findings:</strong> 4</p>
+</div>
+<div class="severity-grid">
+  <div class="severity-card severity-critical">
+    <div class="count">0</div>
+    <div class="label">CRITICAL</div>
+  </div>
+  <div class="severity-card severity-high">
+    <div class="count">0</div>
+    <div class="label">HIGH</div>
+  </div>
+  <div class="severity-card severity-medium">
+    <div class="count">4</div>
+    <div class="label">MEDIUM</div>
+  </div>
+  <div class="severity-card severity-low">
+    <div class="count">0</div>
+    <div class="label">LOW</div>
+  </div>
+  <div class="severity-card severity-info">
+    <div class="count">0</div>
+    <div class="label">INFO</div>
+  </div>
+</div>
+<h2>Findings</h2>
+<div class="finding">
+  <div class="finding-header">
+    <span class="badge badge-medium">MEDIUM</span>
+    <strong>Authentication Endpoint Requires Manual Review</strong>
+    <span class="test-id">ASTF-API2-2023</span>
+  </div>
+  <p><strong>Endpoint:</strong> <code>POST /api/v1/auth/logout</code></p>
+  <p>Authentication endpoints should be carefully reviewed for weak credentials, account lockout mechanisms, rate limiting, and proper token validation.</p>
+  <div class="remediation">
+    <strong>Remediation:</strong> Implement strong password policies, account lockout after failed attempts, rate limiting, and proper token generation using industry-standard algorithms.
+  </div>
+</div>
+<div class="finding">
+  <div class="finding-header">
+    <span class="badge badge-medium">MEDIUM</span>
+    <strong>No Account Lockout or Rate Limiting on Repeated Failed Logins</strong>
+    <span class="test-id">ASTF-API2-2023</span>
+  </div>
+  <p><strong>Endpoint:</strong> <code>POST /api/v1/auth/logout</code></p>
+  <p>8 consecutive failed login attempts against the same account produced no rate-limiting or lockout response (HTTP 429/423). This allows unrestricted brute-force and credential-stuffing attacks against user accounts.</p>
+  <p><strong>Evidence:</strong> <code>Last of 8 attempts returned HTTP 404 with no lockout signal</code></p>
+  <div class="remediation">
+    <strong>Remediation:</strong> Implement account lockout or exponential rate limiting after a small number of failed attempts (e.g. 5), and consider CAPTCHA or IP-based throttling for repeated failures.
+  </div>
+</div>
+<div class="finding">
+  <div class="finding-header">
+    <span class="badge badge-medium">MEDIUM</span>
+    <strong>Authentication Endpoint Requires Manual Review</strong>
+    <span class="test-id">ASTF-API2-2023</span>
+  </div>
+  <p><strong>Endpoint:</strong> <code>POST /api/v1/auth/login</code></p>
+  <p>Authentication endpoints should be carefully reviewed for weak credentials, account lockout mechanisms, rate limiting, and proper token validation.</p>
+  <div class="remediation">
+    <strong>Remediation:</strong> Implement strong password policies, account lockout after failed attempts, rate limiting, and proper token generation using industry-standard algorithms.
+  </div>
+</div>
+<div class="finding">
+  <div class="finding-header">
+    <span class="badge badge-medium">MEDIUM</span>
+    <strong>No Account Lockout or Rate Limiting on Repeated Failed Logins</strong>
+    <span class="test-id">ASTF-API2-2023</span>
+  </div>
+  <p><strong>Endpoint:</strong> <code>POST /api/v1/auth/login</code></p>
+  <p>8 consecutive failed login attempts against the same account produced no rate-limiting or lockout response (HTTP 429/423). This allows unrestricted brute-force and credential-stuffing attacks against user accounts.</p>
+  <p><strong>Evidence:</strong> <code>Last of 8 attempts returned HTTP 404 with no lockout signal</code></p>
+  <div class="remediation">
+    <strong>Remediation:</strong> Implement account lockout or exponential rate limiting after a small number of failed attempts (e.g. 5), and consider CAPTCHA or IP-based throttling for repeated failures.
+  </div>
+</div>
+</div>
+<div class="footer">Generated by OWASP API Security Testing Framework v2.0.1</div>
+</body>
+</html>

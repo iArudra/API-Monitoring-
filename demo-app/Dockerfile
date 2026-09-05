@@ -20,6 +20,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# ASTF is a Java scanner and is executed on demand by the protected API route.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl default-jre-headless && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY demo-app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

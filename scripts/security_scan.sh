@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
+
 # OWASP ASTF Security Scan Trigger Script
 # Downloads the scanner if missing, and runs it against the target.
 
@@ -12,17 +14,40 @@ mkdir -p "$REPORT_DIR"
 
 if [ ! -f "$ASTF_JAR" ]; then
     echo "Downloading OWASP ASTF..."
-    curl -sSL "https://github.com/OWASP/www-project-api-security-testing-framework/releases/latest/download/astf-v2.0.1.jar" -o "$ASTF_JAR"
+    tmp_jar="${ASTF_JAR}.tmp"
+    curl --fail --show-error --silent --location --retry 3 \
+        "https://github.com/OWASP/www-project-api-security-testing-framework/releases/download/v2.0.1/astf-v2.0.1.jar" \
+        --output "$tmp_jar"
+    test -s "$tmp_jar"
+    mv "$tmp_jar" "$ASTF_JAR"
 fi
+test -s "$ASTF_JAR"
 
-echo "Running security scan against $TARGET_URL..."
+REPORT_PATH="$REPORT_DIR/security-report.html"
+rm -f "$REPORT_PATH"
+echo "Running ASTF security scan against $TARGET_URL..."
 
-# Note: In a real scenario, you'd pass the auth token. 
-# We output the report to the reports directory which can be served or inspected.
 if [ -n "$TOKEN" ]; then
-    java -jar "$ASTF_JAR" -u "$TARGET_URL" --token "$TOKEN" -f HTML -o "$REPORT_DIR/security-report.html"
+    set +e
+    java -jar "$ASTF_JAR" -u "$TARGET_URL" --token "$TOKEN" -f HTML -o "$REPORT_PATH"
+    astf_exit=$?
+    set -e
 else
-    java -jar "$ASTF_JAR" -u "$TARGET_URL" -f HTML -o "$REPORT_DIR/security-report.html"
+    set +e
+    java -jar "$ASTF_JAR" -u "$TARGET_URL" -f HTML -o "$REPORT_PATH"
+    astf_exit=$?
+    set -e
 fi
 
-echo "Scan complete. Report generated at $REPORT_DIR/security-report.html"
+if [ "$astf_exit" -gt 1 ]; then
+    echo "ASTF scan failed with exit code $astf_exit" >&2
+    exit "$astf_exit"
+fi
+test -s "$REPORT_PATH"
+report_bytes=$(wc -c < "$REPORT_PATH")
+if [ "$astf_exit" -eq 1 ]; then
+    echo "ASTF scan complete with findings. Report generated at $REPORT_PATH (${report_bytes} bytes)"
+else
+    echo "ASTF scan complete with no findings. Report generated at $REPORT_PATH (${report_bytes} bytes)"
+fi
+exit "$astf_exit"

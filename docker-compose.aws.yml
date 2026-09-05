@@ -47,7 +47,9 @@ services:
 
   demo-app:
     image: ${DEMO_APP_IMAGE:-centralwatch-demo-app:local}
-    build: ./demo-app
+    build:
+      context: .
+      dockerfile: demo-app/Dockerfile
     container_name: centralwatch-demo-app
     restart: unless-stopped
     ports:
