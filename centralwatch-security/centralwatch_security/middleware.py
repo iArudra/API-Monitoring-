@@ -3,10 +3,16 @@ import logging
 from typing import Callable, Awaitable, Optional, Dict, Any
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from opentelemetry import trace
+from opentelemetry import trace, metrics
 
 logger = logging.getLogger("centralwatch_security")
 tracer = trace.get_tracer(__name__)
+meter = metrics.get_meter(__name__)
+
+security_violations_counter = meter.create_counter(
+    "centralwatch_security_violations_total",
+    description="Total number of security violations blocked by the Gateway",
+)
 
 class SecurityEnforcementMiddleware(BaseHTTPMiddleware):
     """
@@ -79,3 +85,5 @@ class SecurityEnforcementMiddleware(BaseHTTPMiddleware):
             if client_ip:
                 span.set_attribute("security.client_ip", client_ip)
             span.set_attribute("security.action", "BLOCKED")
+            
+        security_violations_counter.add(1, {"event_type": event_type, "action": "BLOCKED"})
