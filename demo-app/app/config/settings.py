@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     simulate_timeout_seconds: float = 5.0
     simulate_retry_attempts: int = 3
 
+    # --- OWASP ASTF security scanner ------------------------------------------
+    astf_script_path: str = "/scripts/security_scan.sh"
+    astf_report_path: str = "/app/reports/security-report.html"
+    astf_scan_timeout_seconds: int = 1800
+
 
 @lru_cache
 def get_settings() -> Settings:
